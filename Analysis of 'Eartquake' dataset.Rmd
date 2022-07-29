@@ -1,0 +1,1694 @@
+---
+title: "Analysis of 'Earthquake' dataset"
+author: Orazio Pontorno, 100042940
+date: February 18, 2022
+output: 
+  pdf_document:
+    number_sections: true
+---
+\large
+\newpage
+\tableofcontents
+\newpage
+\section{Introduction}
+\subsection{Libraries}
+List of the libraries used in this report.
+\
+```{r echo=TRUE, message=FALSE, warning=FALSE, paged.print=FALSE}
+library(nlme)      
+library(gamlss)    
+library(gamlss.mx)
+library(ggplot2) 
+library(factoextra) 
+library(NbClust)
+library(hopkins)
+library(psych)
+library(ggpubr)
+library(gridExtra)
+library(cluster)
+library(clValid)
+library(gt)        
+library(magrittr)  
+library(webshot)
+library(fpc)
+```
+
+\subsection{The dataset}
+The dataset that I chose to analyze in this report is the 'Earthquake', contained in 'nlme' library. The Earthquake data frame has 182 rows and 5 columns.
+\
+```{r}
+data("Earthquake")
+head(Earthquake)
+```
+\
+\
+The dataset made up of measurements recorded at available seismometer locations for 23 large earthquakes in western North America between 1940 and 1980. They were originally given in Joyner and Boore (1981); are mentioned in Brillinger (1987); and are analyzed in Davidian and Giltinan (1995). For each measurement $5$ parameters have made recorded.
+\
+```{r}
+names(Earthquake)
+```
+\
+\
+The variables are:
+\begin{itemize}
+\item \textbf{Quake}: an ordered factor with levels $20 < 16 < 14 < 10 < 3 < 8 < 23 < 22 < 6 < 13 < 7 < 21 < 18 < 15 < 4 < 12 < 19 < 5 < 9 < 1 < 2 < 17 < 11$ indicating the earthquake on which the measurements were made.
+
+\item \textbf{Richter}: a numeric vector giving the intensity of the earthquake on the Richter scale.
+
+\item \textbf{distance}: the distance from the seismological measuring station to the epicenter of the earthquake (km).
+
+\item \textbf{soil}: a factor with levels $0$ and $1$ giving the soil condition at the measuring station, either soil or rock.
+
+\item \textbf{accel}: maximum horizontal acceleration observed (g).
+\end{itemize}
+\
+Let's see the structure of the data frame.
+\
+```{r}
+str(Earthquake)
+```
+\
+\
+As we can see, the \emph{Richter}, \emph{distance}, \emph{accel} variables are numeric with the positive real numbers line support $\mathbb{R}^+$; The \emph{Quake}'s one is an ordinal factor variable with $23$ levels; The \emph{accel} variable is a factor with only $2$ levels.
+\newpage
+
+
+
+\section{Univariate Analysis}
+The univariate analisys is the analysis of a single variables.
+
+
+\subsection{Quake}
+\emph{Quake} is a categorical variable, in particular it is a nominal variable representing the earthquake where measurement were made. The list of the variable is ordered by dangerously of the earthquake.
+\
+```{r}
+Quake <- Earthquake$Quake
+table(Quake)
+```
+\
+\
+The table above dysplays the number of measurements for each earthquake. We can better observe it in the following bar plot and pie chart.
+\
+```{r fig.align='center'}
+barplot(table(Quake))
+pie(table(Quake))
+```
+\
+
+\subsection{Richter}
+\emph{Richter} is a numerical continuous variable, defined in the positive real numbers set $\mathbb{R}^+$. The Richter variable collects 182 records, which 17 differ from each other.
+\
+```{r}
+Richter <- Earthquake$Richter
+length(Richter)
+length(unique(Richter))
+```
+\
+\
+The following table displays the frequencies  for every value.
+\
+```{r}
+table(Richter)
+```
+\
+\
+The summary function provides the main statistical parameters.
+\
+```{r}
+summary(Richter)
+sd(Richter)
+var(Richter)
+```
+\
+\
+As we can see, the Ozone variable assumes the minimum value in $5$ and the maximum value in $7.7$, its mean is $6.084$ and the first tree quartiles are reached in $5.3$, $6.1$ (the coincides with the median) and $6.6$. In addition, I calculate the standard deviation, $0.7214312$, and the variance, $0.5204629$. \
+Using the box-plot we can see the distribution of the variables.
+\
+```{r}
+boxplot(Richter)
+```
+\
+\
+From the graph we can deduce the skewness of the distribution and the absence of outliers.\
+Our aim is to find the best model to fit this distribution.
+\
+```{r}
+hist(Richter, main='Histogram of Richter', breaks=20, freq=FALSE)
+lines(density(Richter), col='red')
+```
+\
+\
+Looking at the histogram of the distribution and his density, I think to mix of $2$ and $3$ distributions to fit the data. In order to do it I use the function \emph{'gamlssMXfits'} by the \emph{'gamlss.mx'} library. The families of distributions that I want try to fit are: \emph{Gamma distribution}, \emph{Generalized Gamma distribution}, \emph{Weibull distribution} and \emph{Inverse Gaussian distribution}.
+\
+```{r eval=FALSE}
+fit.GA.R.2 <- gamlssMXfits(n = 4, Richter~1,
+                           family = GA, K = 2, data = NULL)
+```
+```{r message=FALSE, warning=FALSE, include=FALSE}
+fit.GA.R.2 <- gamlssMXfits(n = 4, Richter~1,
+                           family = GA, K = 2, data = NULL)
+```
+\
+\
+Now I calculate the distributions' parameters and then I plot the mixed distribution.
+\
+```{r}
+mu.GA1.2 <- exp(fit.GA.R.2[["models"]][[1]][["mu.coefficients"]])
+sigma.GA1.2 <- exp(fit.GA.R.2[["models"]][[1]][["sigma.coefficients"]])
+mu.GA2.2 <- exp(fit.GA.R.2[["models"]][[2]][["mu.coefficients"]])
+sigma.GA2.2 <- exp(fit.GA.R.2[["models"]][[2]][["sigma.coefficients"]])
+```
+\
+```{r}
+# +++++++++++++++++++++++++++++++++++++++++++++++++++ #
+# Histogram of Richter fitted with mixture of 2 Gamma #
+# +++++++++++++++++++++++++++++++++++++++++++++++++++ #
+
+hist(Richter, breaks = 50,freq = FALSE,
+   main='Histogram of Richter fitted with mixture of 2 Gamma')
+lines(seq(min(Richter),max(Richter),length=length(Richter)),
+          fit.GA.R.2[["prob"]][1]*dGA(seq(min(Richter),max(Richter),
+          length=length(Richter)), mu = mu.GA1.2, sigma = sigma.GA1.2),
+          lty=2,lwd=3,col=2)
+lines(seq(min(Richter),max(Richter),length=length(Richter)),
+          fit.GA.R.2[["prob"]][2]*dGA(seq(min(Richter),max(Richter),
+          length=length(Richter)), mu = mu.GA2.2, sigma = sigma.GA2.2),
+          lty=2,lwd=3,col=3)
+lines(seq(min(Richter),max(Richter),length=length(Richter)),
+          fit.GA.R.2[["prob"]][1]*dGA(seq(min(Richter),max(Richter),
+          length=length(Richter)), mu = mu.GA1.2, sigma = sigma.GA1.2) +
+          fit.GA.R.2[["prob"]][2]*dGA(seq(min(Richter),max(Richter),
+          length=length(Richter)), mu = mu.GA2.2, sigma = sigma.GA2.2),
+          lty = 1, lwd = 3, col = 1)
+```
+\
+\
+Now I repeat the same procedure using other distribution families and I choose the best one according to the Akaike information criterion and Bayesian information criterion. Now, I try to fit a mixture of generalized Gamma distributions.
+\
+```{r eval=FALSE}
+fit.GG.R.2 <- gamlssMXfits(n = 4, Richter~1, 
+                           family = GG, K = 2, data = NULL)
+```
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
+fit.GG.R.2 <- gamlssMXfits(n = 4, Richter~1,
+                           family = GG, K = 2, data = NULL)
+```
+\
+```{r}
+mu.GG1.2 <- exp(fit.GG.R.2[["models"]][[1]][["mu.coefficients"]])
+sigma.GG1.2 <- exp(fit.GG.R.2[["models"]][[1]][["sigma.coefficients"]])
+nu.GG1.2 <- fit.GG.R.2[["models"]][[1]][["nu.coefficients"]]
+mu.GG2.2 <- exp(fit.GG.R.2[["models"]][[2]][["mu.coefficients"]])
+sigma.GG2.2 <- exp(fit.GG.R.2[["models"]][[2]][["sigma.coefficients"]])
+nu.GG2.2 <- fit.GG.R.2[["models"]][[2]][["nu.coefficients"]]
+```
+```{r}
+# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
+# Histogram of Richter fitted with mixture of 2 Generalized Gamma #
+# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
+
+hist(Richter, breaks = 50,freq = FALSE,
+    main='Histogram of Richter fitted with mixture of 2 Generalized Gamma')
+lines(seq(min(Richter),max(Richter),length=length(Richter)),
+    fit.GG.R.2[["prob"]][1]*dGG(seq(min(Richter),max(Richter),
+    length=length(Richter)), mu = mu.GG1.2, sigma = sigma.GG1.2,
+    nu=nu.GG1.2),lty=2,lwd=3,col=2)
+lines(seq(min(Richter),max(Richter),length=length(Richter)),
+    fit.GG.R.2[["prob"]][2]*dGG(seq(min(Richter),max(Richter),
+    length=length(Richter)), mu = mu.GG2.2, sigma = sigma.GG2.2,
+    nu=nu.GG2.2),lty=2,lwd=3,col=3)
+lines(seq(min(Richter),max(Richter),length=length(Richter)),
+    fit.GG.R.2[["prob"]][1]*dGG(seq(min(Richter),max(Richter),
+    length=length(Richter)), mu = mu.GG1.2, sigma = sigma.GG1.2,
+    nu=nu.GG1.2) + 
+    fit.GG.R.2[["prob"]][2]*dGG(seq(min(Richter),
+    max(Richter),length=length(Richter)),
+    mu = mu.GG2.2, sigma = sigma.GG2.2,
+    nu=nu.GG2.2), lty = 1, lwd = 3, col = 1)
+```
+\
+\
+Next, I try to fit a mixture of two Weibull distributions.
+\
+```{r eval=FALSE}
+fit.WEI.R.2 <- gamlssMXfits(n = 5, Richter~1, 
+                          family = WEI, K = 2, data = NULL)
+```
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
+fit.WEI.R.2 <- gamlssMXfits(n = 5, Richter~1, 
+                          family = WEI, K = 2, data = NULL)
+```
+\
+```{r}
+mu.WEI1.2 <- exp(fit.WEI.R.2[["models"]][[1]][["mu.coefficients"]])
+sigma.WEI1.2 <- exp(fit.WEI.R.2[["models"]][[1]][["sigma.coefficients"]])
+mu.WEI2.2 <- exp(fit.WEI.R.2[["models"]][[2]][["mu.coefficients"]])
+sigma.WEI2.2 <- exp(fit.WEI.R.2[["models"]][[2]][["sigma.coefficients"]])
+```
+\
+```{r}
+# +++++++++++++++++++++++++++++++++++++++++++++++++++++ #
+# Histogram of Richter fitted with mixture of 2 Weibull #
+# +++++++++++++++++++++++++++++++++++++++++++++++++++++ #
+
+hist(Richter, breaks = 50,freq = FALSE,
+     main='Histogram of Richter fitted with mixture of 2 Weibull')
+lines(seq(min(Richter),max(Richter),length=length(Richter)),
+    fit.WEI.R.2[["prob"]][1]*dWEI(seq(min(Richter),max(Richter),
+    length=length(Richter)), mu = mu.WEI1.2, sigma = sigma.WEI1.2),
+    lty=2,lwd=3,col=2)
+lines(seq(min(Richter),max(Richter),length=length(Richter)),
+    fit.WEI.R.2[["prob"]][2]*dWEI(seq(min(Richter),max(Richter),
+    length=length(Richter)), mu = mu.WEI2.2, sigma = sigma.WEI2.2),
+    lty=2,lwd=3,col=3)
+lines(seq(min(Richter),max(Richter),length=length(Richter)),
+    fit.WEI.R.2[["prob"]][1]*dWEI(seq(min(Richter),max(Richter),
+    length=length(Richter)), mu = mu.WEI1.2, sigma = sigma.WEI1.2) +
+    fit.WEI.R.2[["prob"]][2]*dWEI(seq(min(Richter),max(Richter),
+    length=length(Richter)), mu = mu.WEI2.2, sigma = sigma.WEI2.2),
+    lty = 1, lwd = 3, col = 1)
+```
+\
+\
+In conclusion, I try to fit a mixture of two Inverse Gaussian distributions.
+\
+```{r eval=FALSE}
+fit.IG.R.2 <- gamlssMXfits(n = 5, Richter~1,
+                           family = IG, K = 2, data = NULL)
+```
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
+fit.IG.R.2 <- gamlssMXfits(n = 5, Richter~1,
+                           family = IG, K = 2, data = NULL)
+```
+\
+```{r}
+mu.IG1.2 <- exp(fit.IG.R.2[["models"]][[1]][["mu.coefficients"]])
+sigma.IG1.2 <- exp(fit.IG.R.2[["models"]][[1]][["sigma.coefficients"]])
+mu.IG2.2 <- exp(fit.IG.R.2[["models"]][[2]][["mu.coefficients"]])
+sigma.IG2.2 <- exp(fit.IG.R.2[["models"]][[2]][["sigma.coefficients"]])
+```
+\
+```{r}
+# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
+# Histogram of Richter fitted with mixture of 2 inverse Gaussian  #
+# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
+
+hist(Richter, breaks = 50,freq = FALSE,
+     main='Histogram of Richter fitted with mixture of 2 inverse Gaussian')
+lines(seq(min(Richter),max(Richter),length=length(Richter)),
+    fit.IG.R.2[["prob"]][1]*dIG(seq(min(Richter),max(Richter),
+    length=length(Richter)), mu = mu.IG1.2, sigma = sigma.IG1.2),
+    lty=2,lwd=3,col=2)
+lines(seq(min(Richter),max(Richter),length=length(Richter)),
+    fit.IG.R.2[["prob"]][2]*dIG(seq(min(Richter),max(Richter),
+    length=length(Richter)), mu = mu.IG2.2, sigma = sigma.IG2.2),
+    lty=2,lwd=3,col=3)
+lines(seq(min(Richter),max(Richter),length=length(Richter)),
+    fit.IG.R.2[["prob"]][1]*dIG(seq(min(Richter),max(Richter),
+    length=length(Richter)), mu = mu.IG1.2, sigma = sigma.IG1.2) +
+    fit.IG.R.2[["prob"]][2]*dIG(seq(min(Richter),max(Richter),
+    length=length(Richter)), mu = mu.IG2.2, sigma = sigma.IG2.2),
+    lty = 1, lwd = 3, col = 1)
+```
+\
+\
+Now I try to fit a mixture of 3 distributions of the same families.
+\
+```{r eval=FALSE}
+fit.GA.R.3 <- gamlssMXfits(n = 5, Richter~1,
+                           family = GA, K = 3, data = NULL)
+```
+```{r message=FALSE, warning=FALSE, include=FALSE}
+fit.GA.R.3 <- gamlssMXfits(n = 5, Richter~1,
+                           family = GA, K = 3, data = NULL)
+```
+\
+```{r}
+mu.GA1.3 <- exp(fit.GA.R.3[["models"]][[1]][["mu.coefficients"]])
+sigma.GA1.3 <- exp(fit.GA.R.3[["models"]][[1]][["sigma.coefficients"]])
+mu.GA2.3 <- exp(fit.GA.R.3[["models"]][[2]][["mu.coefficients"]])
+sigma.GA2.3 <- exp(fit.GA.R.3[["models"]][[2]][["sigma.coefficients"]])
+mu.GA3.3 <- exp(fit.GA.R.3[["models"]][[3]][["mu.coefficients"]])
+sigma.GA3.3 <- exp(fit.GA.R.3[["models"]][[3]][["sigma.coefficients"]])
+```
+\
+```{r}
+# +++++++++++++++++++++++++++++++++++++++++++++++++++ #
+# Histogram of Richter fitted with mixture of 3 Gamma #
+# +++++++++++++++++++++++++++++++++++++++++++++++++++ #
+
+hist(Richter, breaks = 50,freq = FALSE,
+   main='Histogram of Richter fitted with mixture of 3 Gamma')
+lines(seq(min(Richter),max(Richter),length=length(Richter)),
+          fit.GA.R.3[["prob"]][1]*dGA(seq(min(Richter),max(Richter),
+          length=length(Richter)), mu = mu.GA1.3, sigma = sigma.GA1.3),
+          lty=2,lwd=3,col=2)
+lines(seq(min(Richter),max(Richter),length=length(Richter)),
+          fit.GA.R.3[["prob"]][2]*dGA(seq(min(Richter),max(Richter),
+          length=length(Richter)), mu = mu.GA2.3, sigma = sigma.GA2.3),
+          lty=2,lwd=3,col=3)
+lines(seq(min(Richter),max(Richter),length=length(Richter)),
+          fit.GA.R.3[["prob"]][3]*dGA(seq(min(Richter),max(Richter),
+          length=length(Richter)), mu = mu.GA3.3, sigma = sigma.GA3.3),
+          lty=2,lwd=3,col=4)
+lines(seq(min(Richter),max(Richter),length=length(Richter)),
+          fit.GA.R.3[["prob"]][1]*dGA(seq(min(Richter),max(Richter),
+          length=length(Richter)), mu = mu.GA1.3, sigma = sigma.GA1.3) +
+          fit.GA.R.3[["prob"]][2]*dGA(seq(min(Richter),max(Richter),
+          length=length(Richter)), mu=mu.GA2.3, sigma = sigma.GA2.3) + 
+          fit.GA.R.3[["prob"]][3]*dGA(seq(min(Richter),max(Richter),
+          length=length(Richter)), mu = mu.GA3.3, sigma = sigma.GA3.3),
+          lty = 1, lwd = 3, col = 1)
+```
+\
+\
+```{r eval=FALSE}
+fit.GG.R.3 <- gamlssMXfits(n = 4, Richter~1,
+                           family = GG, K = 3, data = NULL)
+```
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
+fit.GG.R.3 <- gamlssMXfits(n = 4, Richter~1,
+                           family = GG, K = 3, data = NULL)
+```
+\
+```{r}
+mu.GG1.3 <- exp(fit.GG.R.3[["models"]][[1]][["mu.coefficients"]])
+sigma.GG1.3 <- exp(fit.GG.R.3[["models"]][[1]][["sigma.coefficients"]])
+nu.GG1.3 <- fit.GG.R.3[["models"]][[1]][["nu.coefficients"]]
+mu.GG2.3 <- exp(fit.GG.R.3[["models"]][[2]][["mu.coefficients"]])
+sigma.GG2.3 <- exp(fit.GG.R.3[["models"]][[2]][["sigma.coefficients"]])
+nu.GG2.3 <- fit.GG.R.3[["models"]][[2]][["nu.coefficients"]]
+mu.GG3.3 <- exp(fit.GG.R.3[["models"]][[3]][["mu.coefficients"]])
+sigma.GG3.3 <- exp(fit.GG.R.3[["models"]][[3]][["sigma.coefficients"]])
+nu.GG3.3 <- fit.GG.R.3[["models"]][[3]][["nu.coefficients"]]
+```
+```{r}
+# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
+# Histogram of Richter fitted with mixture of 3 Generalized Gamma #
+# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
+
+hist(Richter, breaks = 50,freq = FALSE,
+    main='Histogram of Richter fitted with mixture of 3 Generalized Gamma')
+lines(seq(min(Richter),max(Richter),length=length(Richter)),
+    fit.GG.R.3[["prob"]][1]*dGG(seq(min(Richter),max(Richter),
+    length=length(Richter)), mu = mu.GG1.3, sigma = sigma.GG1.3,
+    nu=nu.GG1.3),lty=2,lwd=3,col=2)
+lines(seq(min(Richter),max(Richter),length=length(Richter)),
+    fit.GG.R.3[["prob"]][2]*dGG(seq(min(Richter),max(Richter),
+    length=length(Richter)), mu = mu.GG2.3, sigma = sigma.GG2.3,
+    nu=nu.GG2.3),lty=2,lwd=3,col=3)
+lines(seq(min(Richter),max(Richter),length=length(Richter)),
+    fit.GG.R.3[["prob"]][3]*dGG(seq(min(Richter),max(Richter),
+    length=length(Richter)), mu = mu.GG3.3, sigma = sigma.GG3.3,
+    nu=nu.GG3.3),lty=2,lwd=3,col=4)
+lines(seq(min(Richter),max(Richter),length=length(Richter)),
+    fit.GG.R.3[["prob"]][1]*dGG(seq(min(Richter),max(Richter),
+    length=length(Richter)), mu = mu.GG1.3, sigma = sigma.GG1.3,
+    nu=nu.GG1.3) + fit.GG.R.3[["prob"]][2]*dGG(seq(min(Richter),
+    max(Richter),length=length(Richter)),
+    mu = mu.GG2.3, sigma = sigma.GG2.3,
+    nu=nu.GG2.3) + fit.GG.R.3[["prob"]][3]*dGG(seq(min(Richter),
+    max(Richter),length=length(Richter)), 
+    mu = mu.GG3.3, sigma = sigma.GG3.3,
+    nu=nu.GG3.3), lty = 1, lwd = 3, col = 1)
+```
+\
+\
+```{r eval=FALSE}
+fit.WEI.R.3 <- gamlssMXfits(n = 5, Richter~1, 
+                          family = WEI, K = 3, data = NULL)
+```
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
+fit.WEI.R.3 <- gamlssMXfits(n = 5, Richter~1, 
+                          family = WEI, K = 3, data = NULL)
+```
+\
+```{r}
+mu.WEI1.3 <- exp(fit.WEI.R.3[["models"]][[1]][["mu.coefficients"]])
+sigma.WEI1.3 <- exp(fit.WEI.R.3[["models"]][[1]][["sigma.coefficients"]])
+mu.WEI2.3 <- exp(fit.WEI.R.3[["models"]][[2]][["mu.coefficients"]])
+sigma.WEI2.3 <- exp(fit.WEI.R.3[["models"]][[2]][["sigma.coefficients"]])
+mu.WEI3.3 <- exp(fit.WEI.R.3[["models"]][[3]][["mu.coefficients"]])
+sigma.WEI3.3 <- exp(fit.WEI.R.3[["models"]][[3]][["sigma.coefficients"]])
+```
+\
+```{r}
+# +++++++++++++++++++++++++++++++++++++++++++++++++++++ #
+# Histogram of Richter fitted with mixture of 3 Weibull #
+# +++++++++++++++++++++++++++++++++++++++++++++++++++++ #
+
+hist(Richter, breaks = 50,freq = FALSE,
+     main='Histogram of Richter fitted with mixture of 3 Weibull')
+lines(seq(min(Richter),max(Richter),length=length(Richter)),
+    fit.WEI.R.3[["prob"]][1]*dWEI(seq(min(Richter),max(Richter),
+    length=length(Richter)), mu = mu.WEI1.3, sigma = sigma.WEI1.3),
+    lty=2,lwd=3,col=2)
+lines(seq(min(Richter),max(Richter),length=length(Richter)),
+    fit.WEI.R.3[["prob"]][2]*dWEI(seq(min(Richter),max(Richter),
+    length=length(Richter)), mu = mu.WEI2.3, sigma = sigma.WEI2.3),
+    lty=2,lwd=3,col=3)
+lines(seq(min(Richter),max(Richter),length=length(Richter)),
+    fit.WEI.R.3[["prob"]][3]*dWEI(seq(min(Richter),max(Richter),
+    length=length(Richter)), mu = mu.WEI3.3, sigma = sigma.WEI3.3),
+    lty=2,lwd=3,col=4)
+lines(seq(min(Richter),max(Richter),length=length(Richter)),
+    fit.WEI.R.3[["prob"]][1]*dWEI(seq(min(Richter),max(Richter),
+    length=length(Richter)), mu = mu.WEI1.3, sigma = sigma.WEI1.3) +
+    fit.WEI.R.3[["prob"]][2]*dWEI(seq(min(Richter),max(Richter),
+    length=length(Richter)), mu = mu.WEI2.3, sigma = sigma.WEI2.3) +
+    fit.WEI.R.3[["prob"]][3]*dWEI(seq(min(Richter),max(Richter),
+    length=length(Richter)), mu = mu.WEI3.3, sigma = sigma.WEI3.3),
+    lty = 1, lwd = 3, col = 1)
+```
+\
+\
+```{r eval=FALSE}
+fit.IG.R.3 <- gamlssMXfits(n = 5, Richter~1,
+                           family = IG, K = 3, data = NULL)
+```
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
+fit.IG.R.3 <- gamlssMXfits(n = 5, Richter~1, 
+                           family = IG, K = 3, data = NULL)
+```
+\
+```{r}
+mu.IG1.3 <- exp(fit.IG.R.3[["models"]][[1]][["mu.coefficients"]])
+sigma.IG1.3 <- exp(fit.IG.R.3[["models"]][[1]][["sigma.coefficients"]])
+mu.IG2.3 <- exp(fit.IG.R.3[["models"]][[2]][["mu.coefficients"]])
+sigma.IG2.3 <- exp(fit.IG.R.3[["models"]][[2]][["sigma.coefficients"]])
+mu.IG3.3 <- exp(fit.IG.R.3[["models"]][[3]][["mu.coefficients"]])
+sigma.IG3.3 <- exp(fit.IG.R.3[["models"]][[3]][["sigma.coefficients"]])
+```
+\
+```{r}
+# ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
+# Histogram of Richter fitted with mixture of 3 inverse Gaussian #
+# ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
+
+hist(Richter, breaks = 50,freq = FALSE,
+     main='Histogram of Richter fitted with mixture of 3 inverse Gaussian')
+lines(seq(min(Richter),max(Richter),length=length(Richter)),
+    fit.IG.R.3[["prob"]][1]*dIG(seq(min(Richter),max(Richter),
+    length=length(Richter)), mu = mu.IG1.3, sigma = sigma.IG1.3),
+    lty=2,lwd=3,col=2)
+lines(seq(min(Richter),max(Richter),length=length(Richter)),
+    fit.IG.R.3[["prob"]][2]*dIG(seq(min(Richter),max(Richter),
+    length=length(Richter)), mu = mu.IG2.3, sigma = sigma.IG2.3),
+    lty=2,lwd=3,col=3)
+lines(seq(min(Richter),max(Richter),length=length(Richter)),
+    fit.IG.R.3[["prob"]][3]*dIG(seq(min(Richter),max(Richter),
+    length=length(Richter)), mu = mu.IG3.3, sigma = sigma.IG3.3),
+    lty=2,lwd=3,col=4)
+lines(seq(min(Richter),max(Richter),length=length(Richter)),
+    fit.IG.R.3[["prob"]][1]*dIG(seq(min(Richter),max(Richter),
+    length=length(Richter)), mu = mu.IG1.3, sigma = sigma.IG1.3) +
+    fit.IG.R.3[["prob"]][2]*dIG(seq(min(Richter),max(Richter),
+    length=length(Richter)), mu = mu.IG2.3, sigma = sigma.IG2.3) +
+    fit.IG.R.3[["prob"]][3]*dIG(seq(min(Richter),max(Richter),
+    length=length(Richter)), mu = mu.IG3.3, sigma = sigma.IG3.3),
+    lty = 1, lwd = 3, col = 1)
+```
+\
+\
+In order to find the best fitting for the data distribution, I compare the AIC and BIC values generated for each distribution, then I chose the minimums.
+\
+```{r}
+gt(data.frame(
+  distribution = c('Generalized Gamma', 'Weibull',
+                   'Inverse Gaussian', 'Gamma',
+                   'Generalized Gamma', 'Weibull',
+                   'Inverse Gaussian', 'Gamma'),
+  nb_mixture = c(2,2,2,2,3,3,3,3),
+  df=c(fit.GG.R.2$df.fit, fit.WEI.R.2$df.fit, fit.IG.R.2$df.fit,
+       fit.GA.R.2$df.fit, fit.GG.R.3$df.fit, fit.WEI.R.3$df.fit,
+       fit.IG.R.3$df.fit, fit.GA.R.3$df.fit),
+  BIC=c(fit.GG.R.2$sbc, fit.WEI.R.2$sbc, fit.IG.R.2$sbc, fit.GA.R.2$sbc,
+        fit.GG.R.3$sbc, fit.WEI.R.3$sbc, fit.IG.R.3$sbc, fit.GA.R.3$sbc),
+  AIC=c(AIC(fit.GG.R.2), AIC(fit.WEI.R.2),
+        AIC(fit.IG.R.2), AIC(fit.GA.R.2),
+        AIC(fit.GG.R.3), AIC(fit.WEI.R.3),
+        AIC(fit.IG.R.3), AIC(fit.GA.R.3))))
+```
+\
+\
+According to the Akaike information criterion and Bayesian information criterion the best fitting is given by the mixture of 3 \emph{Generalized Gamma distribution}.
+\
+
+\subsection{distance}
+\emph{distance} variable is a numeric continuous one, defined in the positive real numbers set $\mathbb{R}^+$. The distance variable assumes $153$ different values.
+\
+```{r}
+distance <- Earthquake$distance
+length(distance)
+length(unique(distance))
+```
+\
+\
+Again I calculate the main statistical parameters of the distribution.
+\
+```{r}
+summary(distance)
+sd(distance)
+var(distance)
+```
+\
+\
+The variable assumes the values between $0.5$ and $370$. The Median is $23.40$, the standard deviation is $62.17006$ and the variance $3865.117$.\
+Let's give a look to the distribution.
+\
+```{r}
+boxplot(distance)
+hist(distance, breaks = 30, freq = FALSE, xlab = 'distance from epicenter (km)')
+lines(density(distance), col='red')
+```
+\
+\
+From the plots I deduce that the distribution of data is unbalanced. The presence of many outliers corrupts the computation of the mean, therefore for the analysis the median assumes a more fundamental role then the average: most of the data is around the Median. \
+The distributions that I want to try to fitted to the data distribution are: the \emph{Inverse Gaussian} distribution, the \emph{Generalized Gamma} distribution, the \emph{Weibull} distribution, the \emph{Log-Normal} distribution, the \emph{Exponential} distribution and the \emph{Generalized Inverse Gaussian} distribution.
+\
+```{r fig.asp=1.2}
+# ++++++++++++++++++++++++++++++++++ #
+# Data fitting distance distribution #
+# ++++++++++++++++++++++++++++++++++ #
+
+par(mfrow=c(3,2))
+fit.IG.d <- histDist(distance, family= IG, nbins=30,
+   main='Histogram of distance
+   fitted with Inverse Gaussian distribution')
+fit.GG.d <- histDist(distance, family= GG, nbins=30,
+  main='Histogram of distance
+  fitted with Generalized Gamma distribution')
+fit.WEI.d <- histDist(distance, family= WEI, nbins=30,
+  main='Histogram of distance
+  fitted with Weibull distribution')
+fit.LOGNO.d <- histDist(distance, family= LOGNO, nbins=30,
+  main='Histogram of distance
+  fitted with Log-Normal distribution')
+fit.EXP.d <- histDist(distance, family= EXP, nbins=30,
+  main='Histogram of distance
+  fitted with Exponential distribution')
+fit.GIG.d <- histDist(distance, family= GIG, nbins=30,
+  main='Histogram of distance
+  fitted with Generalized Inverse Gaussian distribution')
+```
+\
+```{r}
+gt(data.frame(
+    DISTRIBUTION = c("Inverse Gaussian", "Generalized Gamma", "Weibull",
+              "Log-Normal", "Exponential", "Generalized Inverse Gamma"),
+    df=c(fit.IG.d$df.fit, fit.GG.d$df.fit, fit.WEI.d$df.fit,
+                fit.LOGNO.d$df.fit, fit.EXP.d$df.fit, fit.GIG.d$df.fit),
+    AIC=c(AIC(fit.IG.d), AIC(fit.GG.d), AIC(fit.WEI.d),
+                 AIC(fit.LOGNO.d), AIC(fit.EXP.d), AIC(fit.GIG.d)),
+    SBC=c(fit.IG.d$sbc, fit.GG.d$sbc, fit.WEI.d$sbc,
+                 fit.LOGNO.d$sbc, fit.EXP.d$sbc, fit.GIG.d$sbc)))
+```
+\
+\
+According to Akaike information criterion and Bayesian information criterion the \emph{Log-Normal distribution} is the best one to fit the distribution.
+
+\subsection{soil}
+\emph{soil} variable is a categorical variable, in particular it is a binary variable that assumes the value $'1'$ if the measuration was made in soil and $'0'$ if it was made in rocks.
+\
+```{r}
+soil <-  Earthquake$soil
+table(soil)
+```
+\
+\
+We can analyze how many measurations were made in soil and in rocks.
+\
+```{r fig.align='center'}
+par(mfrow= c(1,2))
+barplot(table(soil))
+pie(table(soil))
+```
+\
+\
+It is particularly interesting to analyze how other variables are affected by the soil factor. In particular, we want to show how accel and Richter values change depending on whether the measurement is made on soil or on rock.
+\
+```{r}
+sp <- split(Earthquake, soil)
+mrock <- sp$`1`
+msoil <- sp$`0`
+```
+\
+```{r}
+rbind(summary(msoil$accel), summary(mrock$accel))
+sd(msoil$accel)
+sd(mrock$accel)
+```
+\
+\
+Despite the two accel means are very close, the standard deviations are different, this is due to the presence of outliers.
+\
+```{r fig.asp=0.6}
+# +++++++++++++++++++++++++++++++++++++++++++ #
+# Boxplots of accel measured in rock and soil #
+# +++++++++++++++++++++++++++++++++++++++++++ #
+par(mfrow=c(1,2))
+boxplot(mrock$accel)
+boxplot(msoil$accel)
+```
+\
+\
+
+```{r}
+rbind(summary(msoil$Richter), summary(mrock$Richter))
+sd(msoil$Richter)
+sd(mrock$Richter)
+```
+
+\
+```{r fig.asp=0.6}
+# +++++++++++++++++++++++++++++++++++++++++++++ #
+# Boxplots of Richter measured in rock and soil #
+# +++++++++++++++++++++++++++++++++++++++++++++ #
+par(mfrow=c(1,2))
+boxplot(mrock$Richter)
+boxplot(msoil$Richter)
+```
+
+\subsection{accel}
+\emph{accel} variable is a numeric continuous variable, defined in the positive real numbers set $\mathbb{R}^+$.
+\
+```{r}
+accel <- Earthquake$accel
+length(accel)
+length(unique(accel))
+```
+\
+\
+I use the summary function to calculate the main statistical parameters of the distribution.
+\
+```{r}
+summary(accel)
+sd(accel)
+var(accel)
+```
+\
+\
+As we can see, accel variable assumes 182 values between $0.003$ and $0.81$, the median of the distribution is $0.113$, the standard deviation is $0.1490012$ and the variance is $0.2220135$.
+\
+```{r}
+boxplot(accel)
+hist(accel, breaks=30, freq=FALSE)
+lines(density(accel), col='red')
+```
+\
+\
+Also in this case the distribution of data is unbalanced but there are less outliers that corrupt the computation of the average. From the histogram it's possible to see how the distribution look likes to the distance one. For this reason I use the same distribution to the data fitting.
+\
+```{r fig.asp=1.5}
+# +++++++++++++++++++++++++++++++ #
+# Data fitting accel distribution #
+# +++++++++++++++++++++++++++++++ #
+
+par(mfrow=c(3,2))
+fit.IG.a <- histDist(accel, family= IG, nbins=30,
+    main='Histogram of accel
+    fitted with Inverse Gaussian distribution')
+fit.GG.a <- histDist(accel, family= GG, nbins=30,
+    main='Histogram of accel
+    fitted with Generalized Gamma distribution')
+fit.WEI.a <- histDist(accel, family= WEI, nbins=30,
+    main='Histogram of accel
+    fitted with Weibull distribution')
+fit.LOGNO.a <- histDist(accel, family= LOGNO, nbins=30,
+    main='Histogram of accel
+    fitted with Log-Normal distribution')
+fit.EXP.a <- histDist(accel, family= EXP, nbins=30,
+    main='Histogram of accel
+    fitted with Exponential distribution')
+fit.GIG.a <- histDist(accel, family= GIG, nbins=30,
+    main='Histogram of accel
+    fitted with Generalized Inverse Gaussian distribution')
+```
+\
+```{r}
+gt(data.frame(
+   DISTRIBUTION = c("Inverse Gaussian", "Generalized Gamma","Weibull",
+                "Log-Normal", "Exponential", "Generalized Inverse Gamma"),
+   df=c(fit.IG.a$df.fit, fit.GG.a$df.fit, fit.WEI.a$df.fit,
+                fit.LOGNO.a$df.fit, fit.EXP.a$df.fit, fit.GIG.a$df.fit),
+   AIC=c(AIC(fit.IG.a), AIC(fit.GG.a), AIC(fit.WEI.a),
+                AIC(fit.LOGNO.a), AIC(fit.EXP.a), AIC(fit.GIG.a)),
+   SBC=c(fit.IG.a$sbc, fit.GG.a$sbc, fit.WEI.a$sbc,
+                fit.LOGNO.a$sbc, fit.EXP.a$sbc, fit.GIG.a$sbc)))
+
+
+```
+\
+\
+According to Bayesian information criterion and Akaike information criterion the better fitting is performed with the Exponential distribution.
+
+
+
+\newpage
+\section{Multivariate Analysis}
+Multivariate analysis is the analysis of the whole dataset under the presence of three or more variables. These can be correlated or not. The aim is to determinate how data changes respect a single variable when another ones changes.
+```{r}
+earthquake <- Earthquake[,-c(1,4)]
+apply(earthquake, 2, mean)
+apply(earthquake, 2, var)
+```
+\
+\
+I use the \emph{pairs.panels()} function to visualize graphically how each variable depends on the other ones. In particular, the function displays bivariate scatter plots below the diagonal, histograms on the diagonal, and the correlation above the diagonal.
+\
+```{r}
+pairs.panels(earthquake, ellipses = F, lm=FALSE)
+```
+\
+\
+To continue the analysis it's necessary that the data are scaled in equal way, i.e. the variance is the same for every variable, this obviously involves a change in the value of the averages.
+\
+```{r}
+scaled_data <- apply(earthquake, 2, scale)
+head(scaled_data)
+apply(scaled_data, 2, var)
+apply(scaled_data, 2, mean)
+```
+\
+\
+
+\subsection{Principal Component Analysis}
+
+Principal component analysis allows to summarize and to extract important information from a multivariate data set and to express this information as a set of few new variables called principal components.\
+From a mathematical points of view, principal component analysis consists to reduce, if necessary, the dimension of the space in which data is located. In 'Earthquake' dataset, it's possible to think that data is in a $3$-dimensional space in which the coordinates are \emph{Richter}, \emph{distance} and \emph{accel}; therefore we want to find a new set of coordinates, i.e. the dimension of the new space, that 'summarize' the previous ones and then 'rewrite' data with the new coordinates.\
+\
+First of all, I need to find the best number of principal component. In order to do this I will use the following criteria: the \emph{Kaiser rule} and the \emph{cumulative proportion of variance explained}.\
+Let's start with the first one. The Kaiser rule suggests to retain as many principal components as are the eigenvalues greater then $1$ of the matrix having as elements the correlation indices between each pair of variables, called \emph{sample correlation matrix}. This one can be obtained starting from the matrix having the scaled data and computing the covariance between variables or by a direct calculus using applying \emph{cor()} function to the standard data matrix.
+\
+```{r}
+(scaled_cov <- cov(scaled_data))
+cor(earthquake)
+```
+\
+\
+Then I compute the eigenvalues with the \emph{eigen()} function.
+\
+```{r}
+eigen_scaled <- eigen(scaled_cov)
+str(eigen_scaled)
+```
+\
+\
+The number of eigenvalues grater then $1$ is two, hence, according to the Kaiser's rule, this is the number of principal components.\
+\
+The \emph{Cumulative proportion variance explained} criterion suggests to take as many principal components as needed to explain at least the $80\%$ of the total variance. I consider each eigenvalue of the sample correlation matrix and I divide it by the matrix's trace, the result is the \emph{proportion variance} referring to that eigenvalue.
+\
+
+```{r}
+(PVE <- eigen_scaled$values/sum(eigen_scaled$values))
+```
+\
+\
+It's easy to see that the sum of the first two proportion variance is over than $0,8$, therefore also according to the CPVE the best number of principal components is 2 again.\
+Another useful information given by the PVE criterion is the percentage of variability explained for each principal component: in our case, the first principal component explains $55\%$ of the variability, while the second one explains $34%$ of variability.\
+It's possible to visualize graphically the CPVE criterion using a plot called '\emph{cumulative scree plot}'.
+\
+```{r}
+# +++++++++++++++++++++ #
+# Cumulative Scree Plot #
+# +++++++++++++++++++++ #
+
+(CPVE <- qplot(c(1:3), cumsum(PVE)) +
+  geom_line() +
+  xlab("Principal Component") +
+  ylab(NULL) +
+  ggtitle("Cumulative Scree Plot") +
+  geom_hline(yintercept = 0.8, col="red",linetype= "dashed") +
+  ylim(0,1))
+```
+\
+\
+After finding the number of principal component, I calculate their \emph{loading vectors}, i.e. those vectors that give the direction, in the original variables space, to the principal components. To find them, I calculate the eigenvectors associated to eigenvalues meeting the previous criteria.
+\
+```{r}
+(phi <- eigen_scaled$vectors[,1:2])
+```
+\
+```{r}
+phi <- -phi
+row.names(phi) <-  c('Richter','distance','accel')
+colnames(phi) <-  c('PC1','PC2')
+phi
+```
+\
+\
+The first loading vector places more weight on \emph{distance} variable, while the second one places approximately equal weight on \emph{Richter} and \emph{accel} variables.\
+\
+Now, it's the time to compute the \emph{principal component scores}, i.e. to calculate the projections of any point on the principal component axes. From a mathematical point of view, it is the same to perform a variable changing respect the new coordinates.
+\
+```{r}
+PC1 <- scaled_data %*% phi[,1]
+PC2 <- scaled_data %*% phi[,2]
+PC <- data.frame(PC1, PC2)
+head(PC)
+```
+\
+\
+Now we have all the elements to plot the plain with having the first two principal components as axes.
+\
+```{r}
+# ++++++++++++++++++++++++++++++++++ #
+# Data in Principal Components space #
+# ++++++++++++++++++++++++++++++++++ #
+
+ggplot(PC, aes(PC1, PC2)) +
+  modelr::geom_ref_line(h = 0) +
+  modelr::geom_ref_line(v = 0) +
+  geom_point(pch=4) +
+  xlab("PC1") +
+  ylab("PC2") +
+  ggtitle("First Two Principal Components of Eartquake Data")
+```
+\
+\
+Each point on the plain represents a different measurements. Considering the first principal component, it increases when the both distance and Richter do it and when accel decreses, therefore the points on the right of the plane represent the measurements made big distance from the quake's epicenter with a high values on the Richter scale but having a very poor horizontal acceleration observed values.\
+The second principal component increase when both Richter and accel decrease, it don't care about the distance from the epicenter where the measurements were made. As we can see from the plot, most of measurements made, placed on the top of the plane, have a low values of accel and Richter, hence the respective earthquakes were not dangerous!\
+Let's focus on the left-down part of the plane, where the points have coordinates $PC1 \le -1$ and $PC2 \le -2$, those point represent the measurements made not far from the epicenter of the most dangerous earthquakes recorded.
+\
+\
+
+
+\subsection{Cluster Analysis}
+
+Cluster analysis is a statistical method used to group similar objects into respective categories. The goal of performing a cluster analysis is to sort different objects or data points into groups in a manner that the degree of association between two objects is high if they belong to the same group, and low if they belong to different groups.\
+First of all, It's necessary to assess the \emph{clustering tendency}, i.e. to check if the dataset is good to be clustered. Next, if the answer is yes, it need to determinate the number of clusters and choose the optimal clustering methods. Finally we will pass to perform clustering.\
+\
+\subsubsection{Assessing clustering tendency}
+\paragraph{Hopkins statistic method}
+The first method that I will use to assess the clustering tendency is the \emph{Hopkins statistic} method. It consist in computing a value that evaluates if the data are generated by a d-variate uniform distribution on the hyper-rectangle in the original variables space. Calculated values $0 -0.3$ indicate regularly-spaced data. Values around $0.5$ indicate random data. Values $0.7-1$ indicate clustered data.
+\
+In the \emph{Earthquake} dataset case, I want to evaluate how much the data distribution look likes to a 3-variate uniform distribution.
+\
+```{r}
+random_df <- apply(scaled_data, 2,
+                   function(x){runif(length(x), min(x), max(x))})
+random_df <- as.data.frame(random_df)
+par(mfrow = c(1,2))
+pairs(scaled_data, gap=0, pch=16, col=Earthquake$soil)
+pairs(scaled_data, gap=0, pch=16, col=Earthquake$Quake)
+pairs(random_df, gap=0, pch=16)
+```
+\
+\
+It's clear from the two scatterplot matrices that the Earthquake data distribution is very different from a uniform one; But it's also clear that seems to be no presence of any cluster. In addition, seems to be no correlation, in term of clustering, between the numeric variables and the categorical ones. Therefore I look for them in the space spanned by the first two principal component.
+\
+```{r}
+fviz_pca_ind(prcomp(scaled_data),
+    title = "PCA - Earthquake data colored by soil variable",
+    palette = "jco", geom = "point", ggtheme = theme_classic(),
+    col.ind = Earthquake$soil)
+fviz_pca_ind(prcomp(random_df), title = "PCA - Random data",
+             geom = "point", ggtheme = theme_classic())
+```
+\
+\
+Principal Component space confirms the no correlation, in term of clustering, between the numeric variables and the categorical ones; But in my opinion, in the principal components space, there is more probability to have clusters looking at the point's distribution on the space. Now I compute the Hopkins statistic value using the \emph{hopkins()} function from the library having the same name.
+\
+```{r}
+hopkins(scaled_data, m=nrow(scaled_data)-1)
+hopkins(random_df)
+```
+\
+With the write \emph{m = nrow(scaled)-1} I specified the dimension, $m \times 3 = (n-1) \times 3$, of the hyper-rectangle.\
+According to Hopkins statistic, the Earthquake data are highly clustered.\
+\
+\paragraph{VAT algorithm}
+The other methods is the \emph{VAT algorithm} for the visual assessment of cluster tendency. Firstly I compute the distance/dissimilarity matrix between observations, then I use the \emph{fviz$\_$dist()} to visualize it.
+\
+```{r fig.asp=0.5}
+ds1 <- fviz_dist(dist(scaled_data), show_labels = FALSE)+
+  labs(title = "Eartquake data")
+
+ds2 <- fviz_dist(dist(random_df), show_labels = FALSE)+
+  labs(title = "Random data")
+ggpubr::ggarrange(ds1,ds2)
+```
+\
+\
+The images confirm that there is a cluster structure in the scaled numeric data set.
+\
+\subsubsection{Determining the Optimal Number of Clusters}
+In order to determinate the best numbers of clusters I use the \emph{fviz$\_$nbclust()} and \emph{NbClust()} from the \emph{factoextra} and \emph{NbClust} package respectively.\
+\emph{NbClust()} package provides 30 indices for determining the number of clusters and proposes to user the best clustering scheme from the different results obtained by varying all combinations of number of clusters, distance measures, and clustering methods. I perform this function selecting for each distance the following \emph{linkage methods}: "ward.D", "ward.D2", "single", "complete", "average", "mcquitty", "median", "centroid", "kmeans". The distance that I will use are:  "Euclidean", "Manhattan","Minkowski" and "Maximum". Next I will choose the best number, or numbers, of clusters looking for the most chosen one.
+\newpage
+```{r eval=FALSE}
+# ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
+# Determining the Optimal Number of Clusters with Euclidean distance #
+# ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
+
+nbek <- NbClust(scaled_data, distance = "euclidean", min.nc = 2,
+              max.nc = 10, method = "kmeans")
+nbew <- NbClust(scaled_data, distance = "euclidean", min.nc = 2,
+              max.nc = 10, method = "ward.D")
+nbew2 <- NbClust(scaled_data, distance = "euclidean", min.nc = 2,
+              max.nc = 10, method = "ward.D2")
+nbes <- NbClust(scaled_data, distance = "euclidean", min.nc = 2,
+              max.nc = 10, method = "single")
+nbec <- NbClust(scaled_data, distance = "euclidean", min.nc = 2,
+              max.nc = 10, method = "complete")
+nbea <-  NbClust(scaled_data, distance = "euclidean", min.nc = 2,
+              max.nc = 10, method = "average")
+nbece <-  NbClust(scaled_data, distance = "euclidean", min.nc = 2,
+              max.nc = 10, method = "centroid")
+nbeme <-  NbClust(scaled_data, distance = "euclidean", min.nc = 2,
+              max.nc = 10, method = "median")
+nbemq <-  NbClust(scaled_data, distance = "euclidean", min.nc = 2,
+              max.nc = 10, method = "mcquitty")
+re1 <- fviz_nbclust(nbek)
+re2 <- fviz_nbclust(nbew)
+re3 <- fviz_nbclust(nbew2)
+re4 <- fviz_nbclust(nbes)
+re5 <- fviz_nbclust(nbec)
+re6 <- fviz_nbclust(nbea)
+re7 <- fviz_nbclust(nbece)
+re8 <- fviz_nbclust(nbeme)
+re9 <- fviz_nbclust(nbemq)
+```
+```{r include=FALSE}
+nbek <- NbClust(scaled_data, distance = "euclidean", min.nc = 2,
+              max.nc = 10, method = "kmeans")
+nbew <- NbClust(scaled_data, distance = "euclidean", min.nc = 2,
+              max.nc = 10, method = "ward.D")
+nbew2 <- NbClust(scaled_data, distance = "euclidean", min.nc = 2,
+              max.nc = 10, method = "ward.D2")
+nbes <- NbClust(scaled_data, distance = "euclidean", min.nc = 2,
+              max.nc = 10, method = "single")
+nbec <- NbClust(scaled_data, distance = "euclidean", min.nc = 2,
+              max.nc = 10, method = "complete")
+nbea <-  NbClust(scaled_data, distance = "euclidean", min.nc = 2,
+              max.nc = 10, method = "average")
+nbece <-  NbClust(scaled_data, distance = "euclidean", min.nc = 2,
+              max.nc = 10, method = "centroid")
+nbeme <-  NbClust(scaled_data, distance = "euclidean", min.nc = 2,
+              max.nc = 10, method = "median")
+nbemq <-  NbClust(scaled_data, distance = "euclidean", min.nc = 2,
+              max.nc = 10, method = "mcquitty")
+re1 <- fviz_nbclust(nbek)
+re1$labels$title <- 'kmeans'
+re2 <- fviz_nbclust(nbew)
+re2$labels$title <- 'ward.D'
+re3 <- fviz_nbclust(nbew2)
+re3$labels$title <- 'ward.D2'
+re4 <- fviz_nbclust(nbes)
+re4$labels$title <- 'single'
+re5 <- fviz_nbclust(nbec)
+re5$labels$title <- 'complete'
+re6 <- fviz_nbclust(nbea)
+re6$labels$title <- 'average'
+re7 <- fviz_nbclust(nbece)
+re7$labels$title <- 'centroid'
+re8 <- fviz_nbclust(nbeme)
+re8$labels$title <- 'median'
+re9 <- fviz_nbclust(nbemq)
+re9$labels$title <- 'mcquitty'
+```
+\
+```{r fig.align='center', fig.asp=1.5, message=FALSE, warning=FALSE, results='hide'}
+ggpubr::ggarrange(re1, re2, re3, re4, re5, re6, re7, re8, re9,
+                  nrow = 3, ncol = 3)
+```
+\
+\
+```{r eval=FALSE}
+# ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
+# Determining the Optimal Number of Clusters with Manhattan distance #
+# ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
+
+nbmk <- NbClust(scaled_data, distance = "manhattan", min.nc = 2,
+              max.nc = 10, method = "kmeans")
+nbmw <- NbClust(scaled_data, distance = "manhattan", min.nc = 2,
+              max.nc = 10, method = "ward.D")
+nbmw2 <- NbClust(scaled_data, distance = "manhattan", min.nc = 2,
+              max.nc = 10, method = "ward.D2")
+nbms <- NbClust(scaled_data, distance = "manhattan", min.nc = 2,
+              max.nc = 10, method = "single")
+nbmc <- NbClust(scaled_data, distance = "manhattan", min.nc = 2,
+              max.nc = 10, method = "complete")
+nbma <-  NbClust(scaled_data, distance = "manhattan", min.nc = 2,
+              max.nc = 10, method = "average")
+nbmce <-  NbClust(scaled_data, distance = "manhattan", min.nc = 2,
+              max.nc = 10, method = "centroid")
+nbmme <-  NbClust(scaled_data, distance = "manhattan", min.nc = 2,
+              max.nc = 10, method = "median")
+nbmmq <-  NbClust(scaled_data, distance = "manhattan", min.nc = 2,
+              max.nc = 10, method = "mcquitty")
+rm1 <- fviz_nbclust(nbmk)
+rm2 <- fviz_nbclust(nbmw)
+rm3 <- fviz_nbclust(nbmw2)
+rm4 <- fviz_nbclust(nbms)
+rm5 <- fviz_nbclust(nbmc)
+rm6 <- fviz_nbclust(nbma)
+rm7 <- fviz_nbclust(nbmce)
+rm8 <- fviz_nbclust(nbmme)
+rm9 <- fviz_nbclust(nbmmq)
+```
+```{r include=FALSE}
+nbmk <- NbClust(scaled_data, distance = "manhattan", min.nc = 2,
+              max.nc = 10, method = "kmeans")
+nbmw <- NbClust(scaled_data, distance = "manhattan", min.nc = 2,
+              max.nc = 10, method = "ward.D")
+nbmw2 <- NbClust(scaled_data, distance = "manhattan", min.nc = 2,
+              max.nc = 10, method = "ward.D2")
+nbms <- NbClust(scaled_data, distance = "manhattan", min.nc = 2,
+              max.nc = 10, method = "single")
+nbmc <- NbClust(scaled_data, distance = "manhattan", min.nc = 2,
+              max.nc = 10, method = "complete")
+nbma <-  NbClust(scaled_data, distance = "manhattan", min.nc = 2,
+              max.nc = 10, method = "average")
+nbmce <-  NbClust(scaled_data, distance = "manhattan", min.nc = 2,
+              max.nc = 10, method = "centroid")
+nbmme <-  NbClust(scaled_data, distance = "manhattan", min.nc = 2,
+              max.nc = 10, method = "median")
+nbmmq <-  NbClust(scaled_data, distance = "manhattan", min.nc = 2,
+              max.nc = 10, method = "mcquitty")
+rm1 <- fviz_nbclust(nbmk)
+rm1$labels$title <- 'kmeans'
+rm2 <- fviz_nbclust(nbmw)
+rm2$labels$title <- 'ward.D'
+rm3 <- fviz_nbclust(nbmw2)
+rm3$labels$title <- 'ward.D2'
+rm4 <- fviz_nbclust(nbms)
+rm4$labels$title <- 'single'
+rm5 <- fviz_nbclust(nbmc)
+rm5$labels$title <- 'complete'
+rm6 <- fviz_nbclust(nbma)
+rm6$labels$title <- 'average'
+rm7 <- fviz_nbclust(nbmce)
+rm7$labels$title <- 'centroid'
+rm8 <- fviz_nbclust(nbmme)
+rm8$labels$title <- 'median'
+rm9 <- fviz_nbclust(nbmmq)
+rm9$labels$title <- 'mcquitty'
+```
+\
+```{r fig.align='center', fig.asp=1.5, message=FALSE, warning=FALSE, results='hide'}
+ggpubr::ggarrange(rm1, rm2, rm3, rm4, rm5, rm6, rm7, rm8, rm9,
+                  nrow = 3, ncol = 3)
+```
+\
+\
+```{r eval=FALSE}
+# ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
+# Determining the Optimal Number of Clusters with Minkowski distance #
+# ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
+
+nbmkk <- NbClust(scaled_data, distance = "minkowski", min.nc = 2,
+              max.nc = 10, method = "kmeans")
+nbmkw <- NbClust(scaled_data, distance = "minkowski", min.nc = 2,
+              max.nc = 10, method = "ward.D")
+nbmkw2 <- NbClust(scaled_data, distance = "minkowski", min.nc = 2,
+              max.nc = 10, method = "ward.D2")
+nbmks <- NbClust(scaled_data, distance = "minkowski", min.nc = 2,
+              max.nc = 10, method = "single")
+nbmkc <- NbClust(scaled_data, distance = "minkowski", min.nc = 2,
+              max.nc = 10, method = "complete")
+nbmka <-  NbClust(scaled_data, distance = "minkowski", min.nc = 2,
+              max.nc = 10, method = "average")
+nbmkce <-  NbClust(scaled_data, distance = "minkowski", min.nc = 2,
+              max.nc = 10, method = "centroid")
+nbmkme <-  NbClust(scaled_data, distance = "minkowski", min.nc = 2,
+              max.nc = 10, method = "median")
+nbmkmq <-  NbClust(scaled_data, distance = "minkowski", min.nc = 2,
+              max.nc = 10, method = "mcquitty")
+rmk1 <- fviz_nbclust(nbmkk)
+rmk2 <- fviz_nbclust(nbmkw)
+rmk3 <- fviz_nbclust(nbmkw2)
+rmk4 <- fviz_nbclust(nbmks)
+rmk5 <- fviz_nbclust(nbmkc)
+rmk6 <- fviz_nbclust(nbmka)
+rmk7 <- fviz_nbclust(nbmkce)
+rmk8 <- fviz_nbclust(nbmkme)
+rmk9 <- fviz_nbclust(nbmkmq)
+```
+```{r include=FALSE}
+nbmkk <- NbClust(scaled_data, distance = "minkowski", min.nc = 2,
+              max.nc = 10, method = "kmeans")
+nbmkw <- NbClust(scaled_data, distance = "minkowski", min.nc = 2,
+              max.nc = 10, method = "ward.D")
+nbmkw2 <- NbClust(scaled_data, distance = "minkowski", min.nc = 2,
+              max.nc = 10, method = "ward.D2")
+nbmks <- NbClust(scaled_data, distance = "minkowski", min.nc = 2,
+              max.nc = 10, method = "single")
+nbmkc <- NbClust(scaled_data, distance = "minkowski", min.nc = 2,
+              max.nc = 10, method = "complete")
+nbmka <-  NbClust(scaled_data, distance = "minkowski", min.nc = 2,
+              max.nc = 10, method = "average")
+nbmkce <-  NbClust(scaled_data, distance = "minkowski", min.nc = 2,
+              max.nc = 10, method = "centroid")
+nbmkme <-  NbClust(scaled_data, distance = "minkowski", min.nc = 2,
+              max.nc = 10, method = "median")
+nbmkmq <-  NbClust(scaled_data, distance = "minkowski", min.nc = 2,
+              max.nc = 10, method = "mcquitty")
+rmk1 <- fviz_nbclust(nbmkk)
+rmk1$labels$title <- 'kmeans'
+rmk2 <- fviz_nbclust(nbmkw)
+rmk2$labels$title <- 'ward.D'
+rmk3 <- fviz_nbclust(nbmkw2)
+rmk3$labels$title <- 'ward.D2'
+rmk4 <- fviz_nbclust(nbmks)
+rmk4$labels$title <- 'single'
+rmk5 <- fviz_nbclust(nbmkc)
+rmk5$labels$title <- 'complete'
+rmk6 <- fviz_nbclust(nbmka)
+rmk6$labels$title <- 'average'
+rmk7 <- fviz_nbclust(nbmkce)
+rmk7$labels$title <- 'centroid'
+rmk8 <- fviz_nbclust(nbmkme)
+rmk8$labels$title <- 'median'
+rmk9 <- fviz_nbclust(nbmkmq)
+rmk9$labels$title <- 'mcquitty'
+```
+\
+```{r fig.align='center', fig.asp=1.5, message=FALSE, warning=FALSE, results='hide'}
+ggpubr::ggarrange(rmk1, rmk2, rmk3, rmk4, rmk5, rmk6, rmk7, rmk8, rmk9,
+                  nrow = 3, ncol = 3)
+```
+\
+\
+```{r eval=FALSE}
+# ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
+# Determining the Optimal Number of Clusters with Maximum distance #
+# ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
+
+nbmxk <- NbClust(scaled_data, distance = "maximum", min.nc = 2,
+              max.nc = 10, method = "kmeans")
+nbmxw <- NbClust(scaled_data, distance = "maximum", min.nc = 2,
+              max.nc = 10, method = "ward.D")
+nbmxw2 <- NbClust(scaled_data, distance = "maximum", min.nc = 2,
+              max.nc = 10, method = "ward.D2")
+nbmxs <- NbClust(scaled_data, distance = "maximum", min.nc = 2,
+              max.nc = 10, method = "single")
+nbmxc <- NbClust(scaled_data, distance = "maximum", min.nc = 2,
+              max.nc = 10, method = "complete")
+nbmxa <-  NbClust(scaled_data, distance = "maximum", min.nc = 2,
+              max.nc = 10, method = "average")
+nbmxce <-  NbClust(scaled_data, distance = "maximum", min.nc = 2,
+              max.nc = 10, method = "centroid")
+nbmxme <-  NbClust(scaled_data, distance = "maximum", min.nc = 2,
+              max.nc = 10, method = "median")
+nbmxmq <-  NbClust(scaled_data, distance = "maximum", min.nc = 2,
+              max.nc = 10, method = "mcquitty")
+rmx1 <- fviz_nbclust(nbmxk)
+rmx2 <- fviz_nbclust(nbmxw)
+rmx3 <- fviz_nbclust(nbmxw2)
+rmx4 <- fviz_nbclust(nbmxs)
+rmx5 <- fviz_nbclust(nbmxc)
+rmx6 <- fviz_nbclust(nbmxa)
+rmx7 <- fviz_nbclust(nbmxce)
+rmx8 <- fviz_nbclust(nbmxme)
+rmx9 <- fviz_nbclust(nbmxmq)
+```
+```{r include=FALSE}
+nbmxk <- NbClust(scaled_data, distance = "maximum", min.nc = 2,
+              max.nc = 10, method = "kmeans")
+nbmxw <- NbClust(scaled_data, distance = "maximum", min.nc = 2,
+              max.nc = 10, method = "ward.D")
+nbmxw2 <- NbClust(scaled_data, distance = "maximum", min.nc = 2,
+              max.nc = 10, method = "ward.D2")
+nbmxs <- NbClust(scaled_data, distance = "maximum", min.nc = 2,
+              max.nc = 10, method = "single")
+nbmxc <- NbClust(scaled_data, distance = "maximum", min.nc = 2,
+              max.nc = 10, method = "complete")
+nbmxa <-  NbClust(scaled_data, distance = "maximum", min.nc = 2,
+              max.nc = 10, method = "average")
+nbmxce <-  NbClust(scaled_data, distance = "maximum", min.nc = 2,
+              max.nc = 10, method = "centroid")
+nbmxme <-  NbClust(scaled_data, distance = "maximum", min.nc = 2,
+              max.nc = 10, method = "median")
+nbmxmq <-  NbClust(scaled_data, distance = "maximum", min.nc = 2,
+              max.nc = 10, method = "mcquitty")
+rmx1 <- fviz_nbclust(nbmxk)
+rmx1$labels$title <- 'kmeans'
+rmx2 <- fviz_nbclust(nbmxw)
+rmx2$labels$title <- 'ward.D'
+rmx3 <- fviz_nbclust(nbmxw2)
+rmx3$labels$title <- 'ward.D2'
+rmx4 <- fviz_nbclust(nbmxs)
+rmx4$labels$title <- 'single'
+rmx5 <- fviz_nbclust(nbmxc)
+rmx5$labels$title <- 'complete'
+rmx6 <- fviz_nbclust(nbmxa)
+rmx6$labels$title <- 'average'
+rmx7 <- fviz_nbclust(nbmxce)
+rmx7$labels$title <- 'centroid'
+rmx8 <- fviz_nbclust(nbmxme)
+rmx8$labels$title <- 'median'
+rmx9 <- fviz_nbclust(nbmxmq)
+rmx9$labels$title <- 'mcquitty'
+```
+\
+```{r fig.align='center', fig.asp=1.5, message=FALSE, warning=FALSE, results='hide'}
+ggpubr::ggarrange(rmx1, rmx2, rmx3, rmx4, rmx5, rmx6, rmx7, rmx8, rmx9,
+                  nrow = 3, ncol = 3)
+```
+\
+\
+Using the \emph{Euclidean} distance, the best number of clusters is $2$. The same number is given using the \emph{Minkowski} and the \emph{Maximum} distances. According to the \emph{Manhattan} distance instead the best number is $3$.\
+The \emph{NbClust()} function can't perform the search of the best number of clusters using the \emph{pam} linkage method. In order to do this, I use the \emph{fviz$\_$dist()} function, it determines and visualize the optimal number of clusters using different methods: \emph{within cluster sums of squares}, \emph{average silhouette} and \emph{gap statistics}.
+\
+```{r fig.align='center', fig.asp=0.4}
+# ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
+# Determining the Optimal Number of Clusters with Euclidean distance #
+# ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
+
+pame1 <- fviz_nbclust(scaled_data, pam, 
+  diss = dist(scaled_data, method = 'euclidean'), method = "wss") +
+  geom_vline(xintercept = 3, linetype = 2)+
+  labs(subtitle = "Elbow method")
+pame1$labels$title <- 'pam - euclidean'
+pame2 <- fviz_nbclust(scaled_data, pam, 
+  diss = dist(scaled_data, method = 'euclidean'), method = "silhouette") +
+  labs(subtitle = "Silhouette method")
+pame2$labels$title <- 'pam - euclidean'
+pame3 <- fviz_nbclust(scaled_data, pam, 
+  diss = dist(scaled_data, method = 'euclidean'), method = "gap_stat") +
+  labs(subtitle = "Gap statistics")
+pame3$labels$title <- 'pam - euclidean'
+ggpubr::ggarrange(pame1, pame2, pame3, nrow = 1, ncol = 3)
+```
+\
+```{r fig.align='center', fig.asp=0.4}
+# ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
+# Determining the Optimal Number of Clusters with Manhattan distance #
+# ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
+
+pamm1 <- fviz_nbclust(scaled_data, pam, 
+  diss = dist(scaled_data, method = 'manhattan'), method = "wss") +
+  geom_vline(xintercept = 3, linetype = 2)+
+  labs(subtitle = "Elbow method")
+pamm1$labels$title <- 'pam - manhattan'
+pamm2 <- fviz_nbclust(scaled_data, pam, 
+  diss = dist(scaled_data, method = 'manhattan'), method = "silhouette") +
+  labs(subtitle = "Silhouette method")
+pamm2$labels$title <- 'pam - manhattan'
+pamm3 <- fviz_nbclust(scaled_data, pam, 
+  diss = dist(scaled_data, method = 'manhattan'), method = "gap_stat") +
+  labs(subtitle = "Gap statistics")
+pamm3$labels$title <- 'pam - manhattan'
+ggpubr::ggarrange(pamm1, pamm2, pamm3, nrow = 1, ncol = 3)
+```
+\
+```{r fig.align='center', fig.asp=0.4}
+# ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
+# Determining the Optimal Number of Clusters with Minkowski distance #
+# ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
+
+pammk1 <- fviz_nbclust(scaled_data, pam, 
+  diss = dist(scaled_data, method = 'minkowski'), method = "wss") +
+  geom_vline(xintercept = 3, linetype = 2)+
+  labs(subtitle = "Elbow method")
+pammk1$labels$title <- 'pam - minkowski'
+pammk2 <- fviz_nbclust(scaled_data, pam, 
+  diss = dist(scaled_data, method = 'minkowski'), method = "silhouette") +
+  labs(subtitle = "Silhouette method")
+pammk2$labels$title <- 'pam - minkoswki'
+pammk3 <- fviz_nbclust(scaled_data, pam, 
+  diss = dist(scaled_data, method = 'minkowski'), method = "gap_stat") +
+  labs(subtitle = "Gap statistics")
+pammk3$labels$title <- 'pam - minkowski'
+ggpubr::ggarrange(pammk1, pammk2, pammk3, nrow = 1, ncol = 3)
+```
+\
+```{r fig.align='center', fig.asp=0.4}
+# ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
+# Determining the Optimal Number of Clusters with Maximum distance #
+# ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
+
+pammx1 <- fviz_nbclust(scaled_data, pam, 
+  diss = dist(scaled_data, method = 'maximum'), method = "wss") +
+  geom_vline(xintercept = 4, linetype = 2)+
+  labs(subtitle = "Elbow method")
+pammx1$labels$title <- 'pam - maximum'
+pammx2 <- fviz_nbclust(scaled_data, pam, 
+  diss = dist(scaled_data, method = 'maximum'), method = "silhouette") +
+  labs(subtitle = "Silhouette method")
+pammx2$labels$title <- 'pam - maximum'
+pammx3 <- fviz_nbclust(scaled_data, pam, 
+  diss = dist(scaled_data, method = 'maximum'), method = "gap_stat") +
+  labs(subtitle = "Gap statistics")
+pammx3$labels$title <- 'pam - maximum'
+
+ggpubr::ggarrange(pammx1, pammx2, pammx3, nrow = 1, ncol = 3)
+```
+\
+\
+Using the \emph{pam} linkage method and the same four distances, the most preferred number of clusters is $3$. In addition it's possible to see that the number $2$ has never been chosen by the method.\
+In summary, the most chosen clusters numbers are 2, for most combinations of metric and linkage method, and 3 for a good percentage of cases. Some combinations also have chosen $4$ as number of clusters.\
+\
+\
+\subsubsection{Choosing the Best Clustering Algorithms}
+Before moving on to clustering, it is necessary to select the best combination of clustering algorithm and optimal number of clusters, that, as we have just seen, is to be chosen between $2$, $3$ and $4$. To do this, I use the function \emph{clValid}, which compares clustering algorithms using two cluster validation measures: \textbf{Internal measures}, which asses the quality of the clustering, it includes the \emph{connectivity}, the \emph{silhouette coefficient}, and the \emph{Dunn index}; \textbf{Stability measures}, which evaluate the stability of th clustering by comparing it with the clusters obtained after each column (variable) is removed, one at a time. It includes the \emph{average proportion of non-overlap} index, the \emph{average distance} index, the \emph{average distance between means} index and the \emph{figure of merit} index.\
+For the internal measure, the \emph{APN}, \emph{AD}, \emph{ADM} and \emph{FOM} indices have to be minimized. For the stability measure instead, the \emph{Connectivity} index has to be minimized, while the \emph{Dunn} and \emph{Silhouette} indices have to be maximized.\
+It's clear that for each index, there will be one combination of metric, cluster method and number of clusters preferred than the other ones. Therefore I will cluster the dataset using the best choice for each index. Due to the sensitivity to outliers of \emph{maximum} distance and \emph{Minkoski} distance, I look for the best combination of clustering and linkage methods using only the \emph{euclidean} one and \emph{manhattan} one.
+\
+```{r}
+rownames(scaled_data) = 1:nrow(scaled_data)
+```
+\
+```{r eval=FALSE}
+# +++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
+# Choosing the Best Clustering Algorithms using Euclidean #
+# +++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
+
+ew <- clValid(scaled_data, nClust = 2:4,
+      clMethods = c("hierarchical","kmeans","pam"),
+      metric = 'euclidean', method = 'ward', 
+      validation = c("internal", "stability"))
+es <- clValid(scaled_data, nClust = 2:4,
+      clMethods = c("hierarchical","kmeans","pam"),
+      metric = 'euclidean', method = 'single', 
+      validation = c("internal", "stability"))
+ec <- clValid(scaled_data, nClust = 2:4,
+      clMethods = c("hierarchical","kmeans","pam"),
+      metric = 'euclidean', method = 'complete', 
+      validation = c("internal", "stability"))
+ea <- clValid(scaled_data, nClust = 2:4,
+      clMethods = c("hierarchical","kmeans","pam"),
+      metric = 'euclidean', method = 'average', 
+      validation = c("internal", "stability"))
+```
+```{r include=FALSE}
+ew <- clValid(scaled_data, nClust = 2:4,
+      clMethods = c("hierarchical","kmeans","pam"),
+      metric = 'euclidean', method = 'ward', 
+      validation = c("internal", "stability"))
+es <- clValid(scaled_data, nClust = 2:4,
+      clMethods = c("hierarchical","kmeans","pam"),
+      metric = 'euclidean', method = 'single', 
+      validation = c("internal", "stability"))
+ec <- clValid(scaled_data, nClust = 2:4,
+      clMethods = c("hierarchical","kmeans","pam"),
+      metric = 'euclidean', method = 'complete', 
+      validation = c("internal", "stability"))
+ea <- clValid(scaled_data, nClust = 2:4,
+      clMethods = c("hierarchical","kmeans","pam"),
+      metric = 'euclidean', method = 'average', 
+      validation = c("internal", "stability"))
+```
+```{r}
+summary(ew)
+summary(es)
+summary(ec)
+summary(ea)
+```
+\
+```{r eval=FALSE}
+# +++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
+# Choosing the Best Clustering Algorithms using Manhattan #
+# +++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
+
+mw <- clValid(scaled_data, nClust = 2:4,
+      clMethods = c("hierarchical","kmeans","pam"),
+      metric = 'manhattan', method = 'ward', 
+      validation = c("internal", "stability"))
+ms <- clValid(scaled_data, nClust = 2:4,
+      clMethods = c("hierarchical","kmeans","pam"),
+      metric = 'manhattan', method = 'single', 
+      validation = c("internal", "stability"))
+mc <- clValid(scaled_data, nClust = 2:4,
+      clMethods = c("hierarchical","kmeans","pam"),
+      metric = 'manhattan', method = 'complete', 
+      validation = c("internal", "stability"))
+ma <- clValid(scaled_data, nClust = 2:4,
+      clMethods = c("hierarchical","kmeans","pam"),
+      metric = 'manhattan', method = 'average', 
+      validation = c("internal", "stability"))
+```
+```{r include=FALSE}
+mw <- clValid(scaled_data, nClust = 2:4,
+      clMethods = c("hierarchical","kmeans","pam"),
+      metric = 'manhattan', method = 'ward', 
+      validation = c("internal", "stability"))
+ms <- clValid(scaled_data, nClust = 2:4,
+      clMethods = c("hierarchical","kmeans","pam"),
+      metric = 'manhattan', method = 'single', 
+      validation = c("internal", "stability"))
+mc <- clValid(scaled_data, nClust = 2:4,
+      clMethods = c("hierarchical","kmeans","pam"),
+      metric = 'manhattan', method = 'complete', 
+      validation = c("internal", "stability"))
+ma <- clValid(scaled_data, nClust = 2:4,
+      clMethods = c("hierarchical","kmeans","pam"),
+      metric = 'manhattan', method = 'average', 
+      validation = c("internal", "stability"))
+```
+```{r}
+summary(mw)
+summary(ms)
+summary(mc)
+summary(ma)
+```
+\
+\
+The following data frame summarizes the optimal values obtained from the combinations examined for each index and metric.
+\
+```{r}
+x <- gt(data.frame(
+  index = c('APN', 'AD', 'ADM', 'FOM',
+                'Connectivity', 'Dunn', 'Silhouette'),
+  e_score =c(0.0107, 1.3422, 0.1336, 0.8134,
+               2.5956, 0.1758, 0.6116),
+  e_clmethod=c('hierarchical', 'hierarchical', 'hierarchical',
+      'hierarchical', 'hierarchical', 'hierarchical', 'hierarchical'),
+  e_ncluster=c(3, 4, 2, 4, 2, 3, 2),
+  e_method=c('single', 'ward', 'single', 'ward',
+               'ward', 'single', 'single/ward'),
+  m_score=c(0.0107, 1.9168, 0.2493, 0.8050,
+              4.5341, 0.1333, 0.6003),
+  m_clmethod=c('hierarchical', 'k-means', 'hierarchical', 'k-means',
+                 'hierarchical', 'hierarchical', 'hierarchical'),
+  m_ncluster=c(3,4,3,4,2,2,2),
+  m_method=c('single', NA, 'single', NA, 'ward', 'single', 'average')
+  ))
+
+gtsave(x, 'table.pdf', vwidth=1500, vheight=1000)
+```
+\
+\
+Looking at the dataframe, the  best combinations for the clustering are:
+\begin{itemize}
+\item According to APN and Dunn indices, the most optimal clustering method is the \emph{hierarchical} one with \emph{single} linkage method and $3$ as number of clusters using the \emph{euclidean} distance.
+\item According to APN index, the most optimal clustering method is the \emph{hierarchical} one with \emph{single} linkage method and $3$ as number of clusters using the \emph{mahnattan} distance.
+\item According to AD index, the most optimal clustering method is the \emph{hirarchical} one with \emph{ward} linkage method with $4$ as number of clusters using the \emph{euclidean} distance.
+\item According to ADM and Silhouette indices, the most optimal clustering method is the \emph{hierarchical} one with \emph{single} linkage method and $2$ as number of clusters using the \emph{euclidean} distance.
+\item According to Connectivity and Silhouette indices, the most optimal clustering method is the \emph{hierarchical} one with \emph{ward} linkage method and $2$ as number of clusters using the \emph{euclidean} distance.
+\item According to FOM index, the most optimal clustering method is the \emph{k-means} one with $4$ as number of clusters using the \emph{euclidean} distance.
+\end{itemize}
+\
+\
+\subsubsection{Data clustering}
+Now we can move on the clustering of the dataset part. For each combination it will be visualized the clusters in the principal components space, the dendogram and the clusters silhouette plot.
+\
+```{r warning=FALSE}
+# ++++++++++++++++++++++++++++++++++++++++++++++ #
+# Hierarchical - single - 3 - euclidean distance #
+# ++++++++++++++++++++++++++++++++++++++++++++++ #
+
+ehs3 <- eclust(scaled_data, "hclust", k = 3, hc_metric = "euclidean",
+                 hc_method = "single", graph = FALSE)
+fviz_cluster(ehs3, geom = "point",
+             palette = "jco", ggtheme = theme_minimal())
+fviz_dend(ehs3, show_labels = FALSE,
+          palette = "jco", as.ggplot = TRUE)
+```
+\
+\
+The hierarchical clustering method with single linkage method and 3 as number of clusters using the euclidean distance is the best for the APN and Dunn indices. The APN is an index to assessing the stability measure, it measures the average proportion of observations not placed in the same cluster by clustering based on the full data and clustering based on the data with a single column removed. The Dunn index is an internal clustering validation measure that is made up of a \emph{separation} part, in which it calculate for each units of one cluster the distances with  the other units and take the minimum one, and a \emph{compactness} part, in which for each cluster it compute the distance between the units in the same cluster and take the maximum one. If the data contain compact and well-separated clusters we expect a high Dunn index value. The cluster plot reflects the Dunn definition, in fact it is possible to see how the three clusters are well separated and compactness respect the other combinations.\
+It’s possible to draw silhouette coefficients of observations using \emph{fviz silhouette()}, which will also print a summary of the silhouette analysis output.
+\
+```{r}
+fviz_silhouette(ehs3, palette = "jco",
+                ggtheme = theme_classic())
+```
+\
+\
+As we can see from the clusters silhouette plot, there are some observations that are badly clustered, these are the observation with a negative silhouette value, also called misclassifications. We can find them using the following code:
+\
+```{r}
+sil_ehs3 <- ehs3$silinfo$widths[, 1:3]
+neg_sil_ehs3_index <- which(sil_ehs3[, "sil_width"] < 0)
+sil_ehs3[neg_sil_ehs3_index, , drop = FALSE] 
+```
+\
+It's also possible to visualize the clusters in the original variables space using the \emph{pairs()} function.
+\
+```{r}
+pairs(scaled_data,pch=16,col=c(1,2,3)[ehs3$cluster])
+```
+
+\newpage
+```{r warning=FALSE}
+# ++++++++++++++++++++++++++++++++++++++++++++++ #
+# Hierarchical - single - 3 - manhattan distance #
+# ++++++++++++++++++++++++++++++++++++++++++++++ #
+
+mhs3 <- eclust(scaled_data, "hclust", k = 3, hc_metric = "manhattan",
+                 hc_method = "single", graph = FALSE)
+fviz_cluster(mhs3, geom = "point",
+             palette = "jco", ggtheme = theme_minimal())
+fviz_dend(mhs3, show_labels = FALSE,
+          palette = "jco", as.ggplot = TRUE)
+```
+\
+\
+The hierarchical clustering method with single linkage method and 3 as number of clusters using the manhattan distance has the same value of APN index.\
+At first glance it would appear that by changing only the metric, the dataset is clustered in the same manner, in fact the shape of the clusters in principal component space is the same. In reality, changing the metrics leads to a change in the clustering order and to a higher average silhouette width. The number of misclassifications is smaller too.
+\
+```{r}
+fviz_silhouette(mhs3, palette = "jco",
+                ggtheme = theme_classic())
+```
+\
+\
+```{r}
+sil_mhs3 <- mhs3$silinfo$widths[, 1:3]
+neg_sil_mhs3_index <- which(sil_mhs3[, "sil_width"] < 0)
+sil_mhs3[neg_sil_mhs3_index, , drop = FALSE] 
+```
+\
+```{r}
+pairs(scaled_data,pch=16,col=c(1,2,3)[mhs3$cluster])
+```
+
+\newpage
+```{r warning=FALSE, message=FALSE}
+# +++++++++++++++++++++++++++++++++++++++++++ #
+# Hierarchical- ward - 4 - euclidean distance #
+# +++++++++++++++++++++++++++++++++++++++++++ #
+
+ehw4 <- eclust(scaled_data, "hclust", k = 4, hc_metric = "euclidean",
+                 hc_method = "ward", graph = FALSE)
+fviz_cluster(ehw4, geom = "point",
+             palette = "jco", ggtheme = theme_minimal())
+fviz_dend(ehw4, show_labels = FALSE,
+          palette = "jco", as.ggplot = TRUE)
+```
+\
+\
+The hierarchical clustering method with ward linkage method and 4 as number of clusters using the manhattan distance is the best for AD index.\
+The AD is an index to assessing the stability measure, it measures the average distance between observations placed in the same cluster under both cases (full data and data without one column).
+\
+```{r}
+fviz_silhouette(ehw4, palette = "jco",
+                ggtheme = theme_classic())
+```
+\
+\
+As we can see, in this case there is a bigger average silhouette width and a smaller number of misclassifications.
+\
+```{r}
+sil_ehw4 <- ehw4$silinfo$widths[, 1:3]
+neg_sil_ehw4_index <- which(sil_ehw4[, "sil_width"] < 0)
+sil_ehw4[neg_sil_ehw4_index, , drop = FALSE] 
+```
+\
+```{r}
+pairs(scaled_data,pch=16,col=c(1,2,3,4)[ehw4$cluster])
+```
+
+\newpage
+```{r warning=FALSE}
+# ++++++++++++++++++++++++++++++++++++++++++++++ #
+# Hierarchical - single - 2 - euclidean distance #
+# ++++++++++++++++++++++++++++++++++++++++++++++ #
+
+ehs2 <- eclust(scaled_data, "hclust", k = 2, hc_metric = "euclidean",
+                 hc_method = "single", graph = FALSE)
+fviz_cluster(ehs2, geom = "point",
+             palette = "jco", ggtheme = theme_minimal())
+fviz_dend(ehs2, show_labels = FALSE,
+          palette = "jco", as.ggplot = TRUE)
+```
+\
+\
+The hierarchical clustering method with single linkage method and 2 as number of clusters using the euclidean distance is the best for the ADM and Silhouette indices.\
+The ADM is an index for the stability measure, it measures the average distance between cluster centers for observations placed in the same cluster under both cases. The silhouette value, for each unit, is a measure of how similar a unit is to its own cluster compared to other clusters. It takes into account a cohesion value, as a measure of how well an observation is assigned to its cluster, and a separation value, as a measure of how well an observation of a cluster is separated by any other cluster. The silhouette index is an internal clustering validation measure.
+\
+```{r}
+fviz_silhouette(ehs2, palette = "jco",
+                ggtheme = theme_classic())
+```
+\
+\
+There is not a case that this configuration has the greater average silhouette width.
+\
+```{r}
+sil_ehs2 <- ehs2$silinfo$widths[, 1:3]
+neg_sil_ehs2_index <- which(sil_ehs2[, "sil_width"] < 0)
+sil_ehs2[neg_sil_ehs2_index, , drop = FALSE] 
+```
+\
+```{r}
+pairs(scaled_data,pch=16,col=c(1,2)[ehs2$cluster])
+```
+
+\newpage
+```{r warning=FALSE}
+# ++++++++++++++++++++++++++++++++++++++++++++++ #
+#  Hierarchical - ward - 2 - euclidean distance  #
+# ++++++++++++++++++++++++++++++++++++++++++++++ #
+
+ehw2 <- eclust(scaled_data, "hclust", k = 2, hc_metric = "euclidean",
+                 hc_method = "ward", graph = FALSE)
+fviz_cluster(ehw2, geom = "point",
+             palette = "jco", ggtheme = theme_minimal())
+fviz_dend(ehw2, show_labels = FALSE,
+          palette = "jco", as.ggplot = TRUE)
+```
+\
+\
+The hierarchical clustering method with ward linkage method and 2 as number of clusters using the euclidean distance is the best for the Connectivity and Silhouette indices. This is the only configuration that is considered as the most optimal one by two indices of the same measure, in fact the Connectivity index, so as the Silhouette, is an internal clustering validation measure too. It indicates the degree of connectedness of the clusters.
+\
+```{r}
+fviz_silhouette(ehw2, palette = "jco",
+                ggtheme = theme_classic())
+```
+\
+\
+```{r}
+sil_ehw2 <- ehw2$silinfo$widths[, 1:3]
+neg_sil_ehw2_index <- which(sil_ehw2[, "sil_width"] < 0)
+sil_ehw2[neg_sil_ehw2_index, , drop = FALSE] 
+```
+\
+```{r}
+pairs(scaled_data,pch=16,col=c(1,2)[ehw2$cluster])
+```
+
+\newpage
+```{r warning=FALSE}
+# ++++++++++++++++++++++++++++++++++ #
+#  k-means - 4 - manhattan distance  #
+# ++++++++++++++++++++++++++++++++++ #
+
+mk4 <- eclust(scaled_data, "kmeans", k = 4, hc_metric = "manhattan",
+                 hc_method = "ward", graph = FALSE)
+fviz_cluster(mk4, geom = "point",
+             palette = "jco", ggtheme = theme_minimal())
+```
+\
+\
+The k-means clustering method with 4 as number of clusters using the manhattan distance is the best for the FOM index. The FOM is an index to assessing the stability measure. It measures the average intra-cluster variance of the deleted column, where the clustering is based on the remaining columns.
+\
+```{r}
+fviz_silhouette(mk4, palette = "jco",
+                ggtheme = theme_classic())
+```
+\
+\
+As we can see, this configuration is that with the less number of misclassifications. This means that, according to the silhouette, is the better clustered one.
+\
+```{r}
+sil_mk4 <- mk4$silinfo$widths[, 1:3]
+neg_sil_mk4_index <- which(sil_mk4[, "sil_width"] < 0)
+sil_mk4[neg_sil_mk4_index, , drop = FALSE] 
+```
+\
+```{r}
+pairs(scaled_data,pch=16,col=c(1,2,3,4)[mk4$cluster])
+```
